@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,17 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Check,
-  User,
-  DollarSign,
-  Mail,
-  Stethoscope,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { Check, X, User, Medal, FileText, ExternalLink } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -28,138 +19,104 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { approvePayout } from "@/actions/admin";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { updateDoctorStatus } from "@/actions/admin";
 import useFetch from "@/hooks/use-fetch";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { BarLoader } from "react-spinners";
 
-export function PendingPayouts({ payouts }) {
-  const [selectedPayout, setSelectedPayout] = useState(null);
-  const [showApproveDialog, setShowApproveDialog] = useState(false);
+export function PendingDoctors({ doctors }) {
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
 
-  // Custom hook for approve payout server action
-  const { loading, data, fn: submitApproval } = useFetch(approvePayout);
+  // Custom hook for approve/reject server action
+  const {
+    loading,
+    data,
+    fn: submitStatusUpdate,
+  } = useFetch(updateDoctorStatus);
 
-  // Handle view details
-  const handleViewDetails = (payout) => {
-    setSelectedPayout(payout);
+  // Open doctor details dialog
+  const handleViewDetails = (doctor) => {
+    setSelectedDoctor(doctor);
   };
 
-  // Handle approve payout
-  const handleApprovePayout = (payout) => {
-    setSelectedPayout(payout);
-    setShowApproveDialog(true);
+  // Close doctor details dialog
+  const handleCloseDialog = () => {
+    setSelectedDoctor(null);
   };
 
-  // Confirm approval
-  const confirmApproval = async () => {
-    if (!selectedPayout || loading) return;
+  // Handle approve or reject doctor
+  const handleUpdateStatus = async (doctorId, status) => {
+    if (loading) return;
 
     const formData = new FormData();
-    formData.append("payoutId", selectedPayout.id);
+    formData.append("doctorId", doctorId);
+    formData.append("status", status);
 
-    await submitApproval(formData);
+    await submitStatusUpdate(formData);
   };
 
   useEffect(() => {
-    if (data?.success) {
-      setShowApproveDialog(false);
-      setSelectedPayout(null);
-      toast.success("Payout approved successfully!");
+    if (data && data?.success) {
+      handleCloseDialog();
     }
   }, [data]);
-
-  const closeDialogs = () => {
-    setSelectedPayout(null);
-    setShowApproveDialog(false);
-  };
 
   return (
     <div>
       <Card className="bg-muted/20 border-emerald-900/20">
         <CardHeader>
           <CardTitle className="text-xl font-bold text-white">
-            Pending Payouts
+            Pending Doctor Verifications
           </CardTitle>
           <CardDescription>
-            Review and approve doctor payout requests
+            Review and approve doctor applications
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {payouts.length === 0 ? (
+          {doctors.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No pending payout requests at this time.
+              No pending verification requests at this time.
             </div>
           ) : (
             <div className="space-y-4">
-              {payouts.map((payout) => (
+              {doctors.map((doctor) => (
                 <Card
-                  key={payout.id}
+                  key={doctor.id}
                   className="bg-background border-emerald-900/20 hover:border-emerald-700/30 transition-all"
                 >
                   <CardContent className="p-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-muted/20 rounded-full p-2 mt-1">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-muted/20 rounded-full p-2">
                           <User className="h-5 w-5 text-emerald-400" />
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <h3 className="font-medium text-white">
-                            Dr. {payout.doctor.name}
+                            {doctor.name}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            {payout.doctor.specialty}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <div className="flex items-center">
-                              <DollarSign className="h-4 w-4 mr-1 text-emerald-400" />
-                              <span>
-                                {payout.credits} credits • $
-                                {payout.netAmount.toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              <Mail className="h-4 w-4 mr-1 text-emerald-400" />
-                              <span className="text-xs">
-                                {payout.paypalEmail}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Requested{" "}
-                            {format(
-                              new Date(payout.createdAt),
-                              "MMM d, yyyy 'at' h:mm a"
-                            )}
+                            {doctor.specialty} • {doctor.experience} years
+                            experience
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-2 self-end lg:self-center">
+                      <div className="flex items-center gap-2 self-end md:self-auto">
                         <Badge
                           variant="outline"
-                          className="bg-amber-900/20 border-amber-900/30 text-amber-400 w-fit"
+                          className="bg-amber-900/20 border-amber-900/30 text-amber-400"
                         >
                           Pending
                         </Badge>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(payout)}
-                            className="border-emerald-900/30 hover:bg-muted/80"
-                          >
-                            View Details
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprovePayout(payout)}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewDetails(doctor)}
+                          className="border-emerald-900/30 hover:bg-muted/80"
+                        >
+                          View Details
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -170,224 +127,135 @@ export function PendingPayouts({ payouts }) {
         </CardContent>
       </Card>
 
-      {/* Payout Details Dialog */}
-      {selectedPayout && !showApproveDialog && (
-        <Dialog open={!!selectedPayout} onOpenChange={closeDialogs}>
-          <DialogContent className="max-w-2xl">
+      {/* Doctor Details Dialog */}
+      {selectedDoctor && (
+        <Dialog open={!!selectedDoctor} onOpenChange={handleCloseDialog}>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-white">
-                Payout Request Details
+                Doctor Verification Details
               </DialogTitle>
               <DialogDescription>
-                Review the payout request information
+                Review the doctor&apos;s information carefully before making a
+                decision
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-6 py-4">
-              {/* Doctor Information */}
+              {/* Basic Info */}
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Full Name
+                  </h4>
+                  <p className="text-base font-medium text-white">
+                    {selectedDoctor.name}
+                  </p>
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Email
+                  </h4>
+                  <p className="text-base font-medium text-white">
+                    {selectedDoctor.email}
+                  </p>
+                </div>
+                <div className="space-y-1 flex-1">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    Application Date
+                  </h4>
+                  <p className="text-base font-medium text-white">
+                    {format(new Date(selectedDoctor.createdAt), "PPP")}
+                  </p>
+                </div>
+              </div>
+
+              <Separator className="bg-emerald-900/20" />
+
+              {/* Professional Details */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-white font-medium">Doctor Information</h3>
+                  <Medal className="h-5 w-5 text-emerald-400" />
+                  <h3 className="text-white font-medium">
+                    Professional Information
+                  </h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Name
-                    </p>
-                    <p className="text-white">
-                      Dr. {selectedPayout.doctor.name}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Email
-                    </p>
-                    <p className="text-white">{selectedPayout.doctor.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground">
                       Specialty
-                    </p>
+                    </h4>
+                    <p className="text-white">{selectedDoctor.specialty}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Years of Experience
+                    </h4>
                     <p className="text-white">
-                      {selectedPayout.doctor.specialty}
+                      {selectedDoctor.experience} years
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Current Credits
-                    </p>
-                    <p className="text-white">
-                      {selectedPayout.doctor.credits}
-                    </p>
+
+                  <div className="space-y-1 col-span-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Credentials
+                    </h4>
+                    <div className="flex items-center">
+                      <a
+                        href={selectedDoctor.credentialUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 flex items-center"
+                      >
+                        View Credentials
+                        <ExternalLink className="h-4 w-4 ml-1" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Payout Information */}
-              <div className="space-y-4">
+              <Separator className="bg-emerald-900/20" />
+
+              {/* Description */}
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-white font-medium">Payout Details</h3>
+                  <FileText className="h-5 w-5 text-emerald-400" />
+                  <h3 className="text-white font-medium">
+                    Service Description
+                  </h3>
                 </div>
-                <div className="bg-muted/20 p-4 rounded-lg border border-emerald-900/20 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Credits to pay out:
-                    </span>
-                    <span className="text-white font-medium">
-                      {selectedPayout.credits}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Gross amount (10 USD/credit):
-                    </span>
-                    <span className="text-white">
-                      ${selectedPayout.amount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Platform fee (2 USD/credit):
-                    </span>
-                    <span className="text-white">
-                      -${selectedPayout.platformFee.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="border-t border-emerald-900/20 pt-3 flex justify-between font-medium">
-                    <span className="text-white">Net payout:</span>
-                    <span className="text-emerald-400">
-                      ${selectedPayout.netAmount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="border-t border-emerald-900/20 pt-3">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      PayPal Email
-                    </p>
-                    <p className="text-white">{selectedPayout.paypalEmail}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Warning if insufficient credits */}
-              {selectedPayout.doctor.credits < selectedPayout.credits && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Warning: Doctor currently has only{" "}
-                    {selectedPayout.doctor.credits} credits but this payout
-                    requires {selectedPayout.credits} credits. The payout cannot
-                    be processed.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={closeDialogs}
-                className="border-emerald-900/30"
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => handleApprovePayout(selectedPayout)}
-                disabled={
-                  selectedPayout.doctor.credits < selectedPayout.credits
-                }
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Check className="h-4 w-4 mr-1" />
-                Approve Payout
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Approval Confirmation Dialog */}
-      {showApproveDialog && selectedPayout && (
-        <Dialog
-          open={showApproveDialog}
-          onOpenChange={() => setShowApproveDialog(false)}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-white">
-                Confirm Payout Approval
-              </DialogTitle>
-              <DialogDescription>
-                Are you sure you want to approve this payout?
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This action will:
-                  <ul className="mt-2 space-y-1 list-disc pl-4">
-                    <li>
-                      Deduct {selectedPayout.credits} credits from Dr.{" "}
-                      {selectedPayout.doctor.name}'s account
-                    </li>
-                    <li>Mark the payout as PROCESSED</li>
-                    <li>This action cannot be undone</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-
-              <div className="bg-muted/20 p-4 rounded-lg border border-emerald-900/20">
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Doctor:</span>
-                  <span className="text-white">
-                    Dr. {selectedPayout.doctor.name}
-                  </span>
-                </div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-muted-foreground">Amount to pay:</span>
-                  <span className="text-emerald-400 font-medium">
-                    ${selectedPayout.netAmount.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">PayPal:</span>
-                  <span className="text-white text-sm">
-                    {selectedPayout.paypalEmail}
-                  </span>
-                </div>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {selectedDoctor.description}
+                </p>
               </div>
             </div>
 
             {loading && <BarLoader width={"100%"} color="#36d7b7" />}
 
-            <DialogFooter>
+            <DialogFooter className="flex sm:justify-between">
               <Button
-                variant="outline"
-                onClick={() => setShowApproveDialog(false)}
+                variant="destructive"
+                onClick={() =>
+                  handleUpdateStatus(selectedDoctor.id, "REJECTED")
+                }
                 disabled={loading}
-                className="border-emerald-900/30"
+                className="bg-red-600 hover:bg-red-700"
               >
-                Cancel
+                <X className="mr-2 h-4 w-4" />
+                Reject
               </Button>
               <Button
-                onClick={confirmApproval}
+                onClick={() =>
+                  handleUpdateStatus(selectedDoctor.id, "VERIFIED")
+                }
                 disabled={loading}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Confirm Approval
-                  </>
-                )}
+                <Check className="mr-2 h-4 w-4" />
+                Approve
               </Button>
             </DialogFooter>
           </DialogContent>
