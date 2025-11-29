@@ -13,6 +13,4 @@
 - 📧 Notifications and reminders (email/SMS)
 
 ## 🌐 Live Demo
-
-_Optional: Add your deployed URL here (e.g., Netlify, Vercel, Heroku, etc.)_
-
+https://mediconsult-alpha.vercel.app/
